@@ -1,28 +1,28 @@
-#**Grupo Inteca, Cartago**
+# **Grupo Inteca, Cartago**
 Proyecto de Facturación Electrónica, Agosto 2018
 
-##Desarrolladores
+## Desarrolladores
 - Jairo Martínez
 - Jeffrey Camareno
 
-##Administrador del proyecto
+## Administrador del proyecto
 - Jeffrey Camareno
 
 
-#Tabla de contenidos
-1. [Creación de directorios](#uno)
-2. [Scripts  de permisos y seguridad](#dos)
-3. [Importar el .dll del CLR](#tres)
-4. [Crear el Store Procedure (SP) a través del CLR importado](#cuatro)
-5. [Crear un linked server](#cinco)   
-6. [Creación de tablas de parámetros](#seis)
+# Tabla de contenidos
+1. [Creación de directorios](# uno)
+2. [Scripts  de permisos y seguridad](# dos)
+3. [Importar el .dll del CLR](# tres)
+4. [Crear el Store Procedure (SP) a través del CLR importado](# cuatro)
+5. [Crear un linked server](# cinco)   
+6. [Creación de tablas de parámetros](# seis)
 7. [Funciones](#siete)
 8. [Crear tabla de logs](#ocho)
-9. [Crear Store Procedure (SP) Insert_EInvoice](#nueve) 
-10. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](#diez)
-11. [Crear Job EInvoiceFMCM](#once)
+9. [Crear Store Procedure (SP) Insert_EInvoice](# nueve) 
+10. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](# diez)
+11. [Crear Job EInvoiceFMCM](# once)
 
-##Manual de Instalación del Sistema de Facturación Electrónica en los POS-HOMEX
+## Manual de Instalación del Sistema de Facturación Electrónica en los POS-HOMEX
 Para la implementación de este sistema fue necesario intregrar diferentes tecnologías, tales como:
 - web services
 - CLR con visual studio para crear store procedures para SQL Server 2008 R2 desde C# para compilarlo como un .dll
@@ -31,8 +31,8 @@ Para la implementación de este sistema fue necesario intregrar diferentes tecno
 
 La solución para este proyecto se hizo en su mayoría por medio de la base de datos de cada POS, por lo cual, la instalación se tiene que hacer en la base de datos del servidor de cada POS-HOMEX.
 
-##Paso a paso
-###1. Creación de directorios <a name="uno"></a>
+## Paso a paso
+### 1. Creación de directorios <a name="uno"></a>
 Ingresar al servidor de cada POS-HOMEX y crear las siguientes carpetas en la raíz del disco duro principal del servidor (_usualmente en la unidad C_)
 
     |-- FacturaElectronica
@@ -41,7 +41,7 @@ Ingresar al servidor de cada POS-HOMEX y crear las siguientes carpetas en la ra�
             |-- DocumentosInsertados
             |-- Install
 
-###2. Scripts  de permisos y seguridad <a name="dos"></a>
+### 2. Scripts  de permisos y seguridad <a name="dos"></a>
 Ingresar a SQL Server Management Studio en cada POS y ejecutar los siguientes scripts:
 **Nota 1:** _Ejecutar cada script en la base de datos transaccional del POS. Ej: RetailStore, RetailChanelDB, etc._
 **Nota 2:** _Ejecutar cada línea por separado_
@@ -66,7 +66,7 @@ ALTER DATABASE [RetailChannelDB] SET TRUSTWORTHY ON;
 
 
 
-###3. Importar el .dll del CLR <a name="tres"></a>
+### 3. Importar el .dll del CLR <a name="tres"></a>
 Dicho _.dll_ lo que contiene es la programación C# del método que se encarga de Insertar Documentos Electrónicos (enviar los XMLs de las facturas) al Ministerio de Hacienda de Costa Rica. Dicho método se conecta al _Web Service_ del proveedor.
 
 **Nota 1:** _Antes de importar el .dll, debe asegurarse que usted es el owner de la base de datos de Retail.
@@ -91,7 +91,7 @@ Siendo el _owner_ de la base de datos, importar el _.dll_ en la siguiente carpet
 
 **Nota 3:** _Asegurarse de importar el .dll con **set permmission en External Access**_
 
-###4. Crear el Store Procedure (SP) a través del CLR importado <a name="cuatro"></a>
+### 4. Crear el Store Procedure (SP) a través del CLR importado <a name="cuatro"></a>
 **Nota 1:** _Antes de crear el SP, debe correr el siguiente script para darle los permisos a la base de datos:_
 ```SQL
 ALTER ASSEMBLY [SQLCLRTEST] WITH PERMISSION_SET = UNSAFE;
@@ -117,7 +117,7 @@ AS EXTERNAL NAME [SQLCLRTEST].[StoredProcedures].[InsertarDocumentos]
 GO
 ```
 
-###5. Crear un linked server <a name="cinco"></a>
+### 5. Crear un linked server <a name="cinco"></a>
 Se debe crear un nuevo linked server con POS-CS-CARTAGO para que a la hora de ejecutar los scripts de creación de tablas, se importen los datos que existen en la otra instancia del servidor.
 Para crear el Linked Server, siga los siguientes pasos:
 
@@ -132,7 +132,7 @@ Para crear el Linked Server, siga los siguientes pasos:
                     |-- Remote login: giprod
                     |-- With password: UserPassword
 
-###6. Creación de tablas de parámetros <a name="seis"></a>
+### 6. Creación de tablas de parámetros <a name="seis"></a>
 Ejecute los siguientes scripts para crear las tablas de parámetros:
 
 ```SQL
@@ -149,7 +149,7 @@ INTO EINVOICEPAYMMODECR
 FROM [POS-CS-CARTAGO].[RETAILSTORE].[DBO].[EINVOICEPAYMMODECR]
 ```
 
-###7. Funciones <a name="siete"></a>
+### 7. Funciones <a name="siete"></a>
 Ejecute los siguientes scripts para crear las siguientes funciones:
 
 - [getCustomerName]
@@ -323,7 +323,7 @@ BEGIN
 END
 ```
 
-###8. Crear tabla de logs <a name="ocho"></a>
+### 8. Crear tabla de logs <a name="ocho"></a>
 La tabla EINVOICELOG almacena las facturas procesadas en los POS junto con su estado actual respecto a la respuesta que obtuvo ante el Ministerio de Hacienda de Costa Rica.
 
 Para crear la la tabla ejecute el siguiente script:
@@ -365,7 +365,7 @@ CREATE TABLE [dbo].[EINVOICELOG](
 GO
 ```
 
-###9. Crear Store Procedure (SP) Insert_EInvoice <a name="nueve"></a>
+### 9. Crear Store Procedure (SP) Insert_EInvoice <a name="nueve"></a>
 El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda.
 
 Para crear este SP ejecute el siguiente script:
@@ -785,7 +785,7 @@ END
 
 ```
 
-###10. Crear el Store Procedure (SP) Check_Insert_EInvoicelog <a name="diez"></a>
+### 10. Crear el Store Procedure (SP) Check_Insert_EInvoicelog <a name="diez"></a>
 Este SP se encarga de verificar periódicamente que todas las transacciones que se encuentran en la tabla de _RetailTransactionTable_ también se encuentre en la tabla de logs _EInvoiceLog_.
 
 Para crear este SP ejecute el siguiente script:
@@ -865,7 +865,7 @@ BEGIN
 END
 ```
 
-###11. Crear Job EInvoiceFMCM <a name="once"></a>
+### 11. Crear Job EInvoiceFMCM <a name="once"></a>
 Este _Job_ se encargará de ejecutar cada 30 segundos (por defecto) el SP InsertEInvoice
 
 Para crear el trigger, siga los siguientes pasos:
