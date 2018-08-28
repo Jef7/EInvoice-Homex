@@ -10,17 +10,17 @@ Proyecto de Facturación Electrónica, Agosto 2018
 
 
 # Tabla de contenidos
-1. [Creación de directorios](# uno)
-2. [Scripts  de permisos y seguridad](# dos)
+1. [Creación de directorios](#uno)
+2. [Scripts  de permisos y seguridad](#dos)
 3. [Importar el .dll del CLR](# tres)
-4. [Crear el Store Procedure (SP) a través del CLR importado](# cuatro)
-5. [Crear un linked server](# cinco)   
-6. [Creación de tablas de parámetros](# seis)
+4. [Crear el Store Procedure (SP) a través del CLR importado](#cuatro)
+5. [Crear un linked server](#cinco)   
+6. [Creación de tablas de parámetros](#seis)
 7. [Funciones](#siete)
 8. [Crear tabla de logs](#ocho)
-9. [Crear Store Procedure (SP) Insert_EInvoice](# nueve) 
-10. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](# diez)
-11. [Crear Job EInvoiceFMCM](# once)
+9. [Crear Store Procedure (SP) Insert_EInvoice](#nueve) 
+10. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](#diez)
+11. [Crear Job EInvoiceFMCM](#once)
 
 ## Manual de Instalación del Sistema de Facturación Electrónica en los POS-HOMEX
 Para la implementación de este sistema fue necesario intregrar diferentes tecnologías, tales como:
