@@ -12,7 +12,7 @@ Proyecto de Facturación Electrónica, Agosto 2018
 # Tabla de contenidos
 1. [Creación de directorios](#uno)
 2. [Scripts  de permisos y seguridad](#dos)
-3. [Importar el .dll del CLR](# tres)
+3. [Importar el .dll del CLR](#tres)
 4. [Crear el Store Procedure (SP) a través del CLR importado](#cuatro)
 5. [Crear un linked server](#cinco)   
 6. [Creación de tablas de parámetros](#seis)
