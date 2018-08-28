@@ -61,7 +61,7 @@ GO
 RECONFIGURE;
 GO
 
-ALTER DATABASE [RetailChannelDB] SET TRUSTWORTHY ON;
+ALTER DATABASE [DataBaseName] SET TRUSTWORTHY ON;
 ```
 
 
@@ -71,7 +71,9 @@ Dicho _.dll_ lo que contiene es la programación C# del método que se encarga d
 
 **Nota 1:** _Antes de importar el .dll, debe asegurarse que usted es el owner de la base de datos de Retail.
 En caso de que no seas el owner, ejecutar el siguiente script:_
-`EXEC dbo.sp_changedbowner @loginame = N'inteca\YourUserName'`
+```SQL
+EXEC dbo.sp_changedbowner @loginame = N'inteca\YourUserName'
+```
 
 **NOTA 2:** _En caso de que se muestre el siguiente error: "The proposed new database owner is already a user or aliased in the database". Ejecutar los siguientes comandos con el usuario que desea ser el nuevo owner:_
 
@@ -84,8 +86,6 @@ SP_DROPUSER 'inteca\YourUserName'
 GO
 SP_CHANGEDBOWNER 'inteca\YourUserName'
 ```
-
-
 
 Siendo el _owner_ de la base de datos, importar el _.dll_ en la siguiente carpeta de SQL Databases/_DatabaseName_/Programmability/Assemblies
 
@@ -190,6 +190,7 @@ END
 ```
 
 - [getCurrencyCode]
+
 ```SQL
 GO
 
@@ -219,6 +220,7 @@ END
 ```
 
 - [getAccountNum]
+
 ```SQL
 GO
 
@@ -249,6 +251,7 @@ END
 ```
 
 - [Get_TaxValuePercent]
+
 ```SQL
 GO
 
@@ -265,7 +268,6 @@ CREATE FUNCTION [dbo].[Get_TaxValuePercent]
 RETURNS REAL
 AS      
 BEGIN     
-
 	DECLARE @TaxValue REAL
 	
 	SELECT @TaxValue = SUM(TD.TAXVALUE)
@@ -285,6 +287,7 @@ END
 ```
 
 - [Get_ItemName]
+
 ```SQL
 GO
 
@@ -326,8 +329,7 @@ END
 ### 8. Crear tabla de logs <a name="ocho"></a>
 La tabla EINVOICELOG almacena las facturas procesadas en los POS junto con su estado actual respecto a la respuesta que obtuvo ante el Ministerio de Hacienda de Costa Rica.
 
-Para crear la la tabla ejecute el siguiente script:
-
+Para crear la tabla ejecute el siguiente script:
 
 ```SQL
 GO
