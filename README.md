@@ -94,7 +94,7 @@ Siendo el _owner_ de la base de datos, importar el _.dll_ en la siguiente carpet
 ### 4. Crear el Store Procedure (SP) a través del CLR importado <a name="cuatro"></a>
 **Nota 1:** _Antes de crear el SP, debe correr el siguiente script para darle los permisos a la base de datos:_
 ```SQL
-ALTER ASSEMBLY [SQLCLRTEST] WITH PERMISSION_SET = UNSAFE;
+ALTER ASSEMBLY [SQLCLREINVOICE] WITH PERMISSION_SET = UNSAFE;
 ```
 
 **Nota 2:** _En caso de que el servidor sea de 32 bits y se muestre el siguiente error: "Memory pressure errors Failed to initialize the Common Language Runtime (CLR) v2.0.50727 due to memory pressure", seguir los pasos que se indican en los siguientes enlaces:_ 
@@ -103,7 +103,7 @@ ALTER ASSEMBLY [SQLCLRTEST] WITH PERMISSION_SET = UNSAFE;
 
 Luego de dar los permisos a la base de datos, ejecutar los siguiente scripts para crear el SP:
 ```SQL
-CREATE PROCEDURE [dbo].[InsertarDocumentosTEST](
+CREATE PROCEDURE [dbo].[InsertarDocumentosEInvoice](
 @_pvcDocumentosXML Nvarchar(max), 
 @_pvcCorreoUsuario Nvarchar(30), 
 @_pvcClaveUsuario Nvarchar(30), 
@@ -113,7 +113,7 @@ CREATE PROCEDURE [dbo].[InsertarDocumentosTEST](
 )
 
 WITH EXECUTE AS CALLER
-AS EXTERNAL NAME [SQLCLRTEST].[StoredProcedures].[InsertarDocumentos]
+AS EXTERNAL NAME [SQLCLREINVOICE].[StoredProcedures].[InsertarDocumentos]
 GO
 ```
 
