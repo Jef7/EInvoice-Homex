@@ -68,6 +68,8 @@ ALTER DATABASE [DataBaseName] SET TRUSTWORTHY ON;
 ### 3. Importar el .dll del CLR <a name="tres"></a>
 Dicho _.dll_ lo que contiene es la programación C# del método que se encarga de Insertar Documentos Electrónicos (enviar los XMLs de las facturas) al Ministerio de Hacienda de Costa Rica. Dicho método se conecta al _Web Service_ del proveedor.
 
+El archivo _.dll_ lo puede descargar aquí https://github.com/Jef7/EInvoice-Homex/raw/master/SQLCLREINVOICE.dll
+
 **Nota 1:** _Antes de importar el .dll, debe asegurarse que usted es el owner de la base de datos de Retail.
 En caso de que no seas el owner, ejecutar el siguiente script:_
 ```SQL
