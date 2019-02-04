@@ -662,7 +662,7 @@ BEGIN
 			NombreReceptor				= dbo.getCustomerName(RT.CUSTACCOUNT),
 			TipoIdentificacion			= dbo.getCustomerIdType(RT.CUSTACCOUNT),
 			IdentificacionReceptor		= dbo.getCustomerVatNum(RT.CUSTACCOUNT),
-			CorreoElectronicoReceptor	= CASE WHEN RT.RECEIPTEMAIL LIKE '%_@__%.__%'  AND PATINDEX('%[^a-z,0-9,@,.,_]%', REPLACE(RT.RECEIPTEMAIL, '-', 'a')) = 0 THEN RT.RECEIPTEMAIL ELSE @COMPANYEMAIL END, --CASE RT.RECEIPTEMAIL WHEN '' THEN 'vfactelectronic@grupointeca.com' ELSE RT.RECEIPTEMAIL END, --RECEIPTEMAIL
+			CorreoElectronicoReceptor	= dbo.getCustomerEmail(RT.CUSTACCOUNT),
 			CopiaCortesia				= @COMPANYEMAIL
 		FROM #RETTRANSTMP	RT
 		INNER JOIN RETAILTRANSACTIONPAYMENTTRANS RTP (NOLOCK)
