@@ -70,6 +70,8 @@ Dicho _.dll_ lo que contiene es la programación C# del método que se encarga d
 
 El archivo _.dll_ lo puede descargar aquí https://github.com/Jef7/EInvoice-Homex/raw/master/SQLCLREINVOICE.dll
 
+Guardar el archivo dentro de la carpeta **Install**
+
 **Nota 1:** _Antes de importar el .dll, debe asegurarse que usted es el owner de la base de datos de Retail.
 En caso de que no seas el owner, ejecutar el siguiente script:_
 ```SQL
@@ -89,6 +91,8 @@ SP_CHANGEDBOWNER 'inteca\YourUserName'
 ```
 
 Siendo el _owner_ de la base de datos, importar el _.dll_ en la siguiente carpeta de SQL Databases/_DatabaseName_/Programmability/Assemblies
+
+Path to assembly: (buscar el .dll descargado en la carpeta Install)
 
 **Nota 3:** _Asegurarse de importar el .dll con **set permmission en External Access**_
 
