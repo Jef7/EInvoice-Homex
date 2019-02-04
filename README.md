@@ -493,7 +493,7 @@ GO
 -- Create date: 05/11/18
 -- Description:	Returna el email asociado al cliente
 -- =============================================
-ALTER FUNCTION [dbo].[getCustomerEmail]
+CREATE FUNCTION [dbo].[getCustomerEmail]
 (@AccountNum varchar(20)) --PARAMETRO
 
 RETURNS varchar(50)
