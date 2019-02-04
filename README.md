@@ -481,6 +481,37 @@ END
 GO
 ```
 
+- [getCustomerEmail]
+
+```SQL
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		Jeffrey Camareno
+-- Create date: 05/11/18
+-- Description:	Returna el email asociado al cliente
+-- =============================================
+ALTER FUNCTION [dbo].[getCustomerEmail]
+(@AccountNum varchar(20)) --PARAMETRO
+
+RETURNS varchar(50)
+AS
+BEGIN
+	-- Declare the return variable here
+	DECLARE @custEmail varchar(50)
+
+	-- Add the T-SQL statements to compute the return value here
+	set @custEmail = (SELECT email FROM crt.CUSTOMERSVIEW  where crt.CUSTOMERSVIEW.ACCOUNTNUMBER = @AccountNum)
+	
+	-- Return the result of the function
+	RETURN @custEmail
+END
+```
+
+
+
 ### 9. Crear tabla de logs <a name="nueve"></a>
 La tabla EINVOICELOG almacena las facturas procesadas en los POS junto con su estado actual respecto a la respuesta que obtuvo ante el Ministerio de Hacienda de Costa Rica.
 
