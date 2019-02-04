@@ -411,14 +411,6 @@ END
 - [getCustomerVatNum]
 
 ```SQL
-USE [DataBaseName]			--Nombre Base de datos
-GO
-
--- =============================================
--- Author:          Jeffrey Camareno Fonseca
--- Create date:     2018-09-10
--- Description:	    Retorna el VatNum dado el AccountNum
--- =============================================
 SET ANSI_NULLS ON
 GO
 
