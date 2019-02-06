@@ -81,8 +81,6 @@ EXEC dbo.sp_changedbowner @loginame = N'inteca\YourUserName'
 **NOTA 2:** _En caso de que se muestre el siguiente error: "The proposed new database owner is already a user or aliased in the database". Ejecutar los siguientes comandos con el usuario que desea ser el nuevo owner:_
 
 ```SQL
-USE [DataBaseName]
-
 GO
 SP_DROPUSER 'inteca\YourUserName'
 
@@ -158,7 +156,6 @@ FROM [POS-CS-CARTAGO].[RETAILSTORE].[DBO].[EINVOICEPAYMMODECR]
 Ejecute el siguiente script para crear la vista que contendrá la relación de la identificación de cada cliente con el tipo de identificación que le corresponda según lo solicitado por le Ministerio de Hacienda de Costa Rica:
 
 ```SQL
-USE [DataBaseName]		--Nombre de la base de datos
 GO
 
 -- =============================================
@@ -445,10 +442,6 @@ GO
 - [getCustomerIdType]
 
 ```SQL
-USE [DataBaseName]				-- Nombre de la base de datos
-GO
-
-/****** Object:  UserDefinedFunction [dbo].[getCustomerIdType]    Script Date: 05/10/2018 03:07:46 p.m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -559,9 +552,6 @@ El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que 
 Para crear este SP ejecute el siguiente script:
 
 ```SQL
-USE [DataBaseName]		--Nombre de la base de datos
-GO
-
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
