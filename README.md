@@ -668,7 +668,7 @@ BEGIN
 	CREATE TABLE #DetalleXML( 
 		Tipo						VARCHAR(1),
 		CodigoProducto				VARCHAR(20),
-		Cantidad					INT,
+		Cantidad					DECIMAL(15,2),
 		UnidadMedida				INT,
 		DetalleMerc					VARCHAR(70),
 		PrecioUnitario				DECIMAL(15,2),	
