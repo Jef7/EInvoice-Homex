@@ -104,7 +104,7 @@ ALTER ASSEMBLY [SQLCLREINVOICE] WITH PERMISSION_SET = UNSAFE;
 - [Memory pressure errors](https://support.microsoft.com/en-us/help/969962/various-memory-errors-are-logged-to-sql-server-error-log-when-using-sq) 
 - [Solución](https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2005/ms345416(v=sql.90)) 
 
-Luego de dar los permisos a la base de datos, ejecutar los siguiente scripts para crear el SP:
+Luego de dar los permisos a la base de datos, ejecutar los siguientes scripts para crear el SP:
 ```SQL
 CREATE PROCEDURE [dbo].[InsertarDocumentosEInvoice](
 @_pvcDocumentosXML Nvarchar(max), 
@@ -121,7 +121,7 @@ GO
 ```
 
 ### 5. Crear un linked server <a name="cinco"></a>
-Se debe crear un nuevo linked server con POS-CS-CARTAGO para que a la hora de ejecutar los scripts de creación de tablas, se importen los datos que existen en la otra instancia del servidor.
+Se debe crear un nuevo linked server con POS-CS-CARTAGO (o cualquier otro servidor previamente configurado y que cuente con el super-usario **giprod** en la base de datos) para que a la hora de ejecutar los scripts de creación de tablas, se importen los datos que existen en la nueva instancia del servidor.
 Para crear el Linked Server, siga los siguientes pasos:
 
     |-- Server Objects
@@ -1071,7 +1071,7 @@ Para crear el trigger, siga los siguientes pasos:
                         |-- Step name: InsertarDocumentos
                         |-- Type: Transact-SQL script (T-SQL)
                         |-- Run as: -none-
-                        |-- Database: --seleccionar base de datos transaccional de retail--
+                        |-- Database: --seleccionar base de datos transaccional de retail-- (RetailChannelDB / RetailStore / etc)
                         |-- Command> EXEC dbo.Check_Insert_EInvoicelog N'fmcm'
                     |-- Advanced
                         |-- On success action: Quit the job reporting success
@@ -1087,4 +1087,4 @@ Para crear el trigger, siga los siguientes pasos:
                      |-- Ending at: 8:00 pm
                      |-- Check: No end date
 
-Una vez creado el _Job_ únicamente deberá activarlo.
+Una vez creado el _Job_ únicamente deberá verificar si se encuentra activado.
