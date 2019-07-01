@@ -19,9 +19,10 @@ Proyecto de Facturación Electrónica, Agosto 2018
 7. [Creación de la vista de identificaciones](#siete)
 8. [Funciones](#ocho)
 9. [Crear tabla de logs](#nueve)
-10. [Crear Store Procedure (SP) Insert_EInvoice](#diez) 
-11. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](#once)
-12. [Crear Job EInvoiceFMCM](#doce)
+10. [Crear Store Procedure (SP) Insert_EInvoice 4.2](#diez) 
+11. [Crear Store Procedure (SP) Insert_EInvoice 4.3](#once)
+12. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](#doce)
+13. [Crear Job EInvoiceFMCM](#trece)
 
 ## Manual de Instalación del Sistema de Facturación Electrónica en los POS-HOMEX
 Para la implementación de este sistema fue necesario intregrar diferentes tecnologías, tales como:
@@ -546,7 +547,7 @@ CREATE TABLE [dbo].[EINVOICELOG](
 GO
 ```
 
-### 10. Crear Store Procedure (SP) Insert_EInvoice <a name="diez"></a>
+### 10. Crear Store Procedure (SP) Insert_EInvoice (version 4.2) <a name="diez"></a>
 El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda.
 
 Para crear este SP ejecute el siguiente script:
@@ -980,7 +981,458 @@ END
 
 ```
 
-### 11. Crear el Store Procedure (SP) Check_Insert_EInvoicelog <a name="once"></a>
+### 11. Crear Store Procedure (SP) Insert_EInvoice (version 4.3) <a name="diez"></a>
+El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda.
+
+Para crear este SP ejecute el siguiente script:
+
+```SQL
+USE [RetailStore]
+GO
+/****** Object:  StoredProcedure [dbo].[Insert_EInvoice]    Script Date: 06/30/2019 22:30:32 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+-- =============================================
+-- Author:		Jairo Martínez Ureña
+-- Create date: 2018-08-09
+-- Description:	Insertar documento electrónico
+-- =============================================
+-- Example: EXEC dbo.Insert_EInvoice 'fmcm', '0003-000015-42931'
+
+ALTER PROCEDURE [dbo].[Insert_EInvoice]
+	@DATAAREAID VARCHAR(5),
+	@TRANSACTIONID VARCHAR(50)
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	SET NOCOUNT ON;
+	
+	--SET TRANSACTION ISOLATION LEVEL SNAPSHOT;
+-----------------------------
+----PARAMETROS NODO DE ENCABEZADO
+--------------------------
+		CREATE TABLE #EncabezadoXML( 
+		NumCuenta					VARCHAR(20),
+		TipoDoc						INT,
+		FechaFactura				VARCHAR(19),
+		TipoCambio					INT,
+		CondicionVenta				INT,
+		idMedioPago					INT,
+		Sucursal					INT,
+		Terminal					INT,
+		Moneda						INT,
+		SituacionEnvio				INT,
+		TransactionId				VARCHAR(50),
+		ReceiptId					VARCHAR(50),
+		NombreReceptor				VARCHAR(200),
+		TipoIdentificacion			VARCHAR(2),		--NUEVO
+		IdentificacionReceptor		VARCHAR(20),	--NUEVO
+		CodigoActividad				VARCHAR(6),     --Version  4.3
+		CorreoElectronicoReceptor	VARCHAR(200),
+		CopiaCortesia				VARCHAR(200)
+	)
+	
+	-- TOMA EL # DE FACTURA
+	SELECT *
+	INTO #RETTRANSTMP
+	FROM AX.RETAILTRANSACTIONTABLE WITH (NOLOCK)
+	WHERE TRANSACTIONID = @TRANSACTIONID
+
+	--PARAMETROS
+	DECLARE @NUMCUENTA			NVARCHAR(10)
+	DECLARE @CodigoActividad	NVARCHAR(6)
+	DECLARE @PASS				NVARCHAR(30)
+	DECLARE @EMAIL				NVARCHAR(200)	
+	DECLARE @SUC				NVARCHAR(3)
+	DECLARE @TERM				NVARCHAR(3)
+	DECLARE @EINVOICETYPE		INT;
+	DECLARE @TRANSACTION		NVARCHAR(50)
+	DECLARE @RECEIPT			NVARCHAR(50)
+	DECLARE @NUMBEROFITEMS		NUMERIC(32,16)
+	DECLARE @COMPANYEMAIL		NVARCHAR(200)
+	DECLARE @POSDATETIME		DATETIME
+	
+	SELECT 
+		@RECEIPT				= RT.RECEIPTID,
+		@SUC					= CONVERT(NVARCHAR(3),CONVERT(INT, RT.STORE)),
+		@TERM					= CONVERT(NVARCHAR(3),CONVERT(INT, RT.TERMINAL))	,	
+		@EINVOICETYPE			= CASE WHEN SALEISRETURNSALE = 1 OR PAYMENTAMOUNT < 0 THEN 3 ELSE 1 END,
+		@TRANSACTION			= RT.TRANSACTIONID,
+		@NUMBEROFITEMS			= RT.NUMBEROFITEMS,
+		@POSDATETIME			= DATEADD(HH, -6, RT.CREATEDDATETIME)
+	FROM #RETTRANSTMP RT
+
+	SELECT 
+		@NUMCUENTA				= PARM.ACCOUNTNUM,
+		@PASS					= PARM.PASSWORD, 
+		@EMAIL					= PARM.USERADMINEMAIL,
+		@COMPANYEMAIL			= PARM.SALESEMAIL,
+		@CodigoActividad		= '521101' --PARM.ECONOMICACTIVITY   TODO Version  4.3
+	FROM EINVOICEPARAMETERSCR PARM
+	WHERE PARM.DATAAREAID		= @DATAAREAID
+	
+	--NODO ENCABEZADO
+	--BEGIN TRAN 
+	INSERT INTO #EncabezadoXML 
+		SELECT TOP 1 
+			NumCuenta					= @NUMCUENTA, --dbo.getAccountNum(RT.DATAAREAID),
+			TipoDoc						= @EINVOICETYPE,
+			FechaFactura				= CONVERT(VARCHAR(19),DATEADD(HH, -6, RT.CREATEDDATETIME),126),
+			TipoCambio					= CONVERT(INT,(RT.EXCHRATE/100)),
+			CondicionVenta				= 1,
+			idMedioPago					= 1,--RTP.TENDERTYPE, 
+			Sucursal					= CONVERT(INT, RT.STORE),
+			Terminal					= CONVERT(INT, RT.TERMINAL),
+			Moneda						= dbo.getCurrencyCode(RT.CURRENCY),
+			SituacionEnvio				= 1,	
+			TransactionId				= @TRANSACTION,
+			ReceiptId					= @RECEIPT ,
+			NombreReceptor				= dbo.getCustomerName(RT.CUSTACCOUNT),
+			TipoIdentificacion			= dbo.getCustomerIdType(RT.CUSTACCOUNT),
+			IdentificacionReceptor		= dbo.getCustomerVatNum(RT.CUSTACCOUNT),
+			CodigoActividad				= @CodigoActividad,	 --Version  4.3	
+			CorreoElectronicoReceptor	= dbo.getCustomerEmail(RT.CUSTACCOUNT),--CASE WHEN RT.RECEIPTEMAIL LIKE '%_@__%.__%'  AND PATINDEX('%[^a-z,0-9,@,.,_]%', REPLACE(RT.RECEIPTEMAIL, '-', 'a')) = 0 THEN RT.RECEIPTEMAIL ELSE @COMPANYEMAIL END, --CASE RT.RECEIPTEMAIL WHEN '' THEN 'vfactelectronic@grupointeca.com' ELSE RT.RECEIPTEMAIL END, --RECEIPTEMAIL
+			CopiaCortesia				= @COMPANYEMAIL
+		FROM #RETTRANSTMP	RT
+		INNER JOIN RETAILTRANSACTIONPAYMENTTRANS RTP (NOLOCK)
+			ON RTP.RECEIPTID	= RT.RECEIPTID
+			AND RTP.DATAAREAID	= RT.DATAAREAID		
+	--COMMIT TRAN
+	-- FIN NODO ENCABEZADO
+----------------------------
+----PARAMETROS NODO DE DETALLE
+--------------------------
+
+	DECLARE @DETROWNCOUNT INT	
+	
+	CREATE TABLE #DetalleXML( 
+		Tipo						VARCHAR(1),
+		CodigoProducto				VARCHAR(20),
+		Cantidad					DECIMAL(15,2), --INT, cambio a decimal para que pueda vender pollo en terminos de kilos
+		UnidadMedida				INT,
+		DetalleMerc					VARCHAR(70),
+		PrecioUnitario				DECIMAL(15,2),	
+		MontoDescuento				DECIMAL(15,2),
+		NaturalezaDescuento			VARCHAR(100),	
+		CodigoImpuesto				INT,
+		CodigoTarifa				INT,	--VERSION 4.3
+		PorcentajeImpuesto			DECIMAL(6,2),
+		MontoImpuesto				DECIMAL(15,2),
+		PrecioBruto					DECIMAL(15,2),
+		TaxItemGroup				VARCHAR(30),
+		TransactionId				VARCHAR(50),
+		ReceiptId					VARCHAR(20),
+		ReturnTransactionId			VARCHAR(50))
+	
+	--Nodo Detalle
+	--BEGIN TRAN 
+	INSERT INTO #DetalleXML
+		SELECT
+			Tipo					= CASE IT.ITEMTYPE WHEN 0 THEN 'M' WHEN 2 THEN 'S' END,
+			CodigoProducto			= RTSALES.ITEMID,
+			Cantidad				= CASE WHEN RT.SALEISRETURNSALE = 1 OR RT.PAYMENTAMOUNT  < 0 THEN RTSALES.QTY ELSE RTSALES.QTY *-1  END, 
+			UnidadMedida			= 95,
+			DetalleMerc				= dbo.Get_ItemName(RTSALES.DATAAREAID, RTSALES.ITEMID),
+			PrecioUnitario			= RTSALES.PRICE,
+			MontoDescuento			= CASE WHEN RT.SALEISRETURNSALE = 1 OR RT.PAYMENTAMOUNT  < 0 THEN RTSALES.DISCAMOUNT*-1 ELSE RTSALES.DISCAMOUNT  END, 
+			NaturalezaDescuento		= CASE WHEN RTSALES.DISCAMOUNT <> 0 THEN 'Descuento por promoción' ELSE '' END,	
+			CodigoImpuesto			= CASE RTSALES.TAXITEMGROUP WHEN 'EXENTOS' THEN '' ELSE '1' END,
+			CodigoTarifa			= CASE RTSALES.TAXITEMGROUP WHEN 'EXENTOS' THEN '' ELSE '8' END, --Version 4.3
+			PorcentajeImpuesto		= dbo.Get_TaxValuePercent(RTSALES.DATAAREAID, RTSALES.TAXITEMGROUP),
+			MontoImpuesto			= CASE WHEN RT.SALEISRETURNSALE = 1 OR RT.PAYMENTAMOUNT  < 0 THEN RTSALES.TAXAMOUNT ELSE RTSALES.TAXAMOUNT *-1  END,
+			PrecioBruto				= RTSALES.PRICE * (CASE WHEN SALEISRETURNSALE = 1 OR PAYMENTAMOUNT  < 0 THEN RTSALES.QTY ELSE RTSALES.QTY *-1 END),
+			TaxItemGroup			= RTSALES.TAXITEMGROUP,
+			TransactionId			= RT.TRANSACTIONID,
+			ReceiptId				= RT.RECEIPTID,
+			ReturnTransactionId		= RTSALES.RETURNTRANSACTIONID
+		FROM RETAILTRANSACTIONSALESTRANS RTSALES (NOLOCK)
+		INNER JOIN #RETTRANSTMP RT
+			ON RT.TRANSACTIONID		= RTSALES.TRANSACTIONID
+			AND RT.STORE			= RTSALES.STORE
+			AND RT.TERMINAL			= RTSALES.TERMINALID
+			AND RT.DATAAREAID		= RTSALES.DATAAREAID
+		INNER JOIN ax.INVENTTABLE IT
+			ON IT.ITEMID			= RTSALES.ITEMID
+			AND IT.DATAAREAID		= IT.DATAAREAID
+			AND RTSALES.TRANSACTIONSTATUS = 0 -- Solo los que se facturaron
+
+		SET @DETROWNCOUNT = @@ROWCOUNT;
+
+		-- ACTUALIZA MONTO IMPUESTO (TEMAS DE HACIENDA)
+		UPDATE #DetalleXML
+			SET MontoImpuesto		= CONVERT(DECIMAL(15,2),((PrecioUnitario * Cantidad) - MontoDescuento) * PorcentajeImpuesto/100)
+		WHERE @EINVOICETYPE			= 3
+
+	--COMMIT TRAN
+	-- FIN NODO DETALLE	
+		
+----------------------------
+----PARAMETROS NODO DE REFERENCIA (Devolución)
+--------------------------
+	CREATE TABLE #ReferenciaXML( 
+		TpoDocRef				VARCHAR(2),
+		NumeracionReferencia	VARCHAR(50), -- Tiquete electrónico o clave numerica
+		CodigoReferencia		VARCHAR(2),
+		TransactionId			VARCHAR(50),
+		ReceiptId				VARCHAR(20))
+	
+	IF(@EINVOICETYPE = 3)
+	BEGIN 
+		DECLARE @ReturnTransactionId VARCHAR(50)
+		
+		SET	@ReturnTransactionId		= (SELECT TOP 1 ReturnTransactionId FROM #DetalleXML)
+		
+		INSERT INTO #ReferenciaXML
+			SELECT TpoDocRef			= '04',
+				NumeracionReferencia	= EINV.EINVOICEID, --@ReturnTransactionId,
+				CodigoReferencia		= CASE WHEN @NUMBEROFITEMS = TRANS.NUMBEROFITEMS THEN '01' ELSE '03' END, -- 1 anula referencia , 2 corrige texto, 3 corrige monto
+				TRANS.TransactionId, 
+				TRANS.ReceiptId 
+			FROM RETAILTRANSACTIONTABLE TRANS (NOLOCK)	
+			INNER JOIN EINVOICELOG EINV
+				ON EINV.INVOICEID		= TRANS.TransactionId
+				AND EINV.STORE			= CONVERT(INT,TRANS.STORE)
+				AND EINV.EINVOICEID IS NOT NULL
+			WHERE TRANS.DATAAREAID		= @DATAAREAID
+				AND TRANS.TRANSACTIONID = @ReturnTransactionId			
+	END
+	-- FIN NODO REFERENCIA		
+----------------------------
+----PARAMETROS NODO DE TOTALES
+--------------------------
+	DECLARE @TotalServGravados			DECIMAL(15,2)
+	DECLARE	@TotalServExentos			DECIMAL(15,2)
+	DECLARE	@TotalMercanciasGravadas	DECIMAL(15,2)
+	DECLARE	@TotalMercanciasExentas		DECIMAL(15,2)
+	DECLARE	@TotalGravado				DECIMAL(15,2)
+	DECLARE	@TotalExento				DECIMAL(15,2)
+	DECLARE	@TotalVenta					DECIMAL(15,2)
+	DECLARE	@TotalDescuentos			DECIMAL(15,2)
+	DECLARE	@TotalVentaNeta				DECIMAL(15,2)
+	DECLARE	@TotalImpuesto				DECIMAL(15,2)
+	DECLARE	@TotalComprobante			DECIMAL(15,2)
+	--DECLARE @NumeroFactura			VARCHAR(20)
+
+	CREATE TABLE #TotalesXML( 
+		TotalServGravados				DECIMAL(15,2),
+		TotalServExentos				DECIMAL(15,2),
+		TotalServExonerados				DECIMAL(15,2),  --VERSION 4.3
+		TotalMercanciasGravadas			DECIMAL(15,2),
+		TotalMercanciasExentas			DECIMAL(15,2),
+		TotalMercanciasExoneradas		DECIMAL(15,2),  --VERSION 4.3
+		TotalGravado					DECIMAL(15,2),
+		TotalExento						DECIMAL(15,2),
+		TotalExonerado					DECIMAL (15,2),  --VERSION 4.3
+		TotalOtrosCargos				DECIMAL (15,2),  --VERSION 4.3
+		TotalIVADevuelto				DECIMAL (15,2), --VERSION 4.3
+		TotalVenta						DECIMAL(15,2),
+		TotalDescuentos					DECIMAL(15,2),
+		TotalVentaNeta					DECIMAL(15,2),
+		TotalImpuesto					DECIMAL(15,2),
+		TotalComprobante				DECIMAL(15,2),
+		TransactionId					VARCHAR(50),
+		ReceiptId						VARCHAR(20))
+	
+	SELECT 
+		@TotalServGravados				= ISNULL(SUM(F.TotalServGravados),0),
+		@TotalServExentos				= ISNULL(SUM(F.TotalServExentos),0),
+		@TotalMercanciasGravadas		= ISNULL(SUM(F.TotalMercanciasGravadas),0),
+		@TotalMercanciasExentas			= ISNULL(SUM(F.TotalMercanciasExentas),0),
+		@TotalGravado					= @TotalServGravados + @TotalMercanciasGravadas,  
+		@TotalExento					= @TotalServExentos + @TotalMercanciasExentas, 
+		@TotalVenta						= @TotalGravado + @TotalExento,
+		@TotalDescuentos				= SUM(F.TotalDescuentos),
+		@TotalVentaNeta					= @TotalVenta - @TotalDescuentos,
+		@TotalImpuesto					= SUM(F.TotalImpuesto),
+		@TotalComprobante				= @TotalVentaNeta + @TotalImpuesto
+	FROM (
+		SELECT 
+			TotalServGravados			= CASE WHEN Tipo  = 'S' AND TaxItemGroup <> 'EXENTOS' THEN SUM(PrecioBruto) END,
+			TotalServExentos			= CASE WHEN Tipo  = 'S' AND TaxItemGroup = 'EXENTOS' THEN SUM(PrecioBruto) END,
+			TotalMercanciasGravadas		= CASE WHEN Tipo  = 'M' AND TaxItemGroup <> 'EXENTOS' THEN SUM(PrecioBruto) END,
+			TotalMercanciasExentas		= CASE WHEN Tipo  = 'M' AND TaxItemGroup = 'EXENTOS' THEN SUM(PrecioBruto) END,
+			TotalDescuentos				= SUM(MontoDescuento),
+			TotalImpuesto				= SUM(MontoImpuesto),
+			TransactionId, ReceiptId
+		FROM #DetalleXML
+		GROUP BY Tipo, TransactionId, ReceiptId, TaxItemGroup ) F
+	GROUP BY F.TransactionId, F.ReceiptId
+
+	--BEGIN TRAN 
+	--Nodo Totales
+	INSERT INTO #TotalesXML
+		SELECT 
+			@TotalServGravados,
+			@TotalServExentos,
+			0,  --VERSION 4.3
+			@TotalMercanciasGravadas,
+			@TotalMercanciasExentas,
+			0,  --VERSION 4.3
+			@TotalGravado,  
+			@TotalExento,
+			0,  --VERSION 4.3
+			0,	--VERSION 4.3
+			0,	--VERSION 4.3
+			@TotalVenta	,
+			@TotalDescuentos,
+			@TotalVentaNeta,
+			@TotalImpuesto,
+			@TotalComprobante,
+			@TRANSACTION,
+			@RECEIPT
+			
+	-- FIN NODO TOTALES	
+	--COMMIT TRAN
+	--CREACION XML	
+	DECLARE	@XMLString	VARCHAR(MAX)	
+	 
+	SET @XMLString =  (	
+		SELECT 
+			(SELECT 
+				TransactionId,
+				FechaFactura,	
+				(SELECT NumCuenta FOR	XML PATH('Emisor'), TYPE),
+				CodigoActividad, --Version  4.3
+				TipoCambio,
+				TipoDoc,			
+				CondicionVenta,
+				Moneda,
+				idMedioPago,		
+				Sucursal,
+				Terminal,	
+				SituacionEnvio,
+				( SELECT NombreReceptor, TipoIdentificacion, IdentificacionReceptor, CorreoElectronicoReceptor, CopiaCortesia FOR XML PATH('Receptor'), TYPE)
+			FROM #EncabezadoXML
+			FOR	XML PATH('Encabezado'),TYPE),
+			(SELECT
+				(SELECT 
+				CodigoProducto,
+				Cantidad,
+				UnidadMedida,
+				DetalleMerc,
+				PrecioUnitario,
+				case when MontoDescuento<>0 then (SELECT MontoDescuento,NaturalezaDescuento FOR	XML PATH('Descuentos'), TYPE)else '' end, --Version 4.3
+				(SELECT CodigoImpuesto,CodigoTarifa,PorcentajeImpuesto, MontoImpuesto FOR	XML PATH('Impuesto'), TYPE, ROOT ('Impuestos'))	--Version 4.3 CodigoTarifa		
+				FROM #DetalleXML
+				FOR	XML PATH('Linea'),TYPE)
+			FOR XML PATH('Detalle'),TYPE),		
+				(SELECT TpoDocRef = ISNULL(TpoDocRef,0),	NumeracionReferencia = ISNULL(NumeracionReferencia,0), CodigoReferencia = ISNULL(CodigoReferencia,0)
+					FROM #ReferenciaXML
+				FOR	XML PATH('Referencia'), TYPE, ROOT ('InformacionDeReferencia')),
+			(SELECT 
+				TotalServGravados,
+				TotalServExentos,
+				TotalServExonerados,   --VERSION 4.3
+				TotalMercanciasGravadas,
+				TotalMercanciasExentas,
+				TotalMercanciasExoneradas,  --VERSION 4.3
+				TotalGravado,  
+				TotalExento,
+				TotalExonerado,  --VERSION 4.3
+				TotalOtrosCargos,
+				TotalIVADevuelto,
+				TotalVenta	,
+				TotalDescuentos,
+				TotalVentaNeta,
+				TotalImpuesto,
+				TotalComprobante
+			FROM #TotalesXML
+			FOR	XML PATH('Totales'),TYPE)
+		FOR XML PATH('FacturaElectronicaXML'), ROOT('root')
+		)
+
+	DECLARE	@XMLPrefix	VARCHAR(100)	
+	SET @XMLPrefix = '<?xml version="1.0" encoding="UTF-8"?>'
+	
+	SET @XMLString = @XMLPrefix + @XMLString
+
+	DECLARE @INVOICE_EXIST NVARCHAR(20)
+
+	SELECT @INVOICE_EXIST =  INVOICEID
+	FROM EINVOICELOG
+	WHERE INVOICEID = @TRANSACTION
+		AND EINVOICEID <> ''
+
+	IF(@INVOICE_EXIST IS NULL)
+	BEGIN
+
+		--SELECT XMLstr = @XMLString, Email = @EMAIL, Pwd = @PASS, Factura = @TRANSACTION, Sucursal = @SUC, Term = @TERM
+		EXEC dbo.InsertarDocumentosEInvoice @XMLString, @EMAIL, @PASS, @TRANSACTION, @SUC, @TERM
+	
+		--Inserta el XML en una tabla temporal para recorrerlo
+		CREATE TABLE #XMLwithOpenXML (
+			Id				INT IDENTITY PRIMARY KEY,
+			XMLData			XML,
+			LoadedDateTime  DATETIME )
+
+		--WAITFOR DELAY '00:00:02' 
+
+		DECLARE @RetailStore	Varchar(10);
+		DECLARE @XmlRespPath	Varchar(100)		= 'C:\\FacturaElectronica\Homex\DocumentosInsertados\'
+		DECLARE @FileName		Varchar(100);
+		DECLARE @Ext			Varchar(6)			= '.xml';
+		DECLARE @Sufix			Varchar(11)			= '_respuesta'
+		DECLARE @sql			nvarchar(MAX);
+
+		SET @RetailStore	= '_' +  @SUC +'_' + @TERM	; 
+
+		SET @FileName		= @XmlRespPath  + @TRANSACTION +  @RetailStore + @Sufix + @ExT;
+		
+		Select @sql			= N'INSERT INTO #XMLwithOpenXML(XMLData, LoadedDateTime)
+					SELECT CONVERT(XML, BulkColumn) AS BulkColumn, GETDATE() 
+				FROM OPENROWSET(BULK ''' + @FileName + ''', SINGLE_BLOB) AS x;'
+	
+		EXEC sp_executesql @sql
+	
+		DECLARE @XML AS XML, @hDoc AS INT --, @SQL NVARCHAR (MAX)
+		DECLARE @EINVOICEID		NVARCHAR(30)
+		DECLARE @SEQUENCENUM	NVARCHAR(50)
+		DECLARE @ERRORCODE		NVARCHAR(20)
+		DECLARE @ERRORMSG		NVARCHAR(255)
+		DECLARE @XMLRECEIVEDSTR NVARCHAR(MAX)
+
+		SELECT @XML = XMLData, @XMLRECEIVEDSTR = convert(varchar(max),XMLData )
+		FROM #XMLwithOpenXML	
+	
+		EXEC sp_xml_preparedocument @hDoc OUTPUT, @XML
+
+		SELECT 
+			@SEQUENCENUM	= ClaveNumerica ,
+			@EINVOICEID		= NumConsecutivoCompr,
+			@ERRORCODE		= CodigoError,
+			@ERRORMSG		= DescripcionError
+		FROM OPENXML(@hDoc, 'root/FacturaElectronicaXML')
+		WITH 
+		(	
+			ClaveNumerica [nvarchar](50)  'ClaveNumerica',
+			NumConsecutivoCompr [nvarchar](30) 'NumConsecutivoCompr',
+			CodigoError [varchar](20) 'CodigoError',		
+			DescripcionError [varchar](255) 'DescripcionError'	
+		)
+
+		EXEC sp_xml_removedocument @hDoc
+	 	
+		--BEGIN TRY	
+		--BEGIN TRAN
+		--SELECT @RECEIPTID
+		INSERT INTO EINVOICELOG (DATAAREAID, EINVOICEID, EINVOICESEQUENCEKEY, ERRORMSG, XMLSENDED, XMLRECEIVED, INVOICEID, ERRORCODE, GI_SENTSITUATION, STORE, TERMINAL, GI_EINVOICEINSERTSTATUS, EINVOICETYPE, CREATEDDATETIME, RECEIPTID, POSCREATEDDATE)
+								VALUES (@DATAAREAID, ISNULL(@EINVOICEID, ''), ISNULL(@SEQUENCENUM,''), @ERRORMSG, @XMLString,@XMLRECEIVEDSTR, @TRANSACTION, @ERRORCODE, 1, @SUC, @TERM, 0, @EINVOICETYPE,DATEADD(HOUR,-6,GETUTCDATE()), @RECEIPT,  @POSDATETIME)
+		--COMMIT TRAN
+	END
+	
+	DROP TABLE #RETTRANSTMP
+	DROP TABLE #EncabezadoXML
+	DROP TABLE #DetalleXML
+	DROP TABLE #TotalesXML
+	DROP TABLE #XMLwithOpenXML
+END
+
+```
+
+### 12. Crear el Store Procedure (SP) Check_Insert_EInvoicelog <a name="once"></a>
 Este SP se encarga de verificar periódicamente que todas las transacciones que se encuentran en la tabla de _RetailTransactionTable_ también se encuentre en la tabla de logs _EInvoiceLog_.
 
 Para crear este SP ejecute el siguiente script:
@@ -1060,7 +1512,7 @@ BEGIN
 END
 ```
 
-### 12. Crear Job EInvoiceFMCM <a name="doce"></a>
+### 13. Crear Job EInvoiceFMCM <a name="doce"></a>
 Este _Job_ se encargará de ejecutar cada 30 segundos (por defecto) el SP InsertEInvoice
 
 Para crear el trigger, siga los siguientes pasos:
