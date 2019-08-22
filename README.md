@@ -172,7 +172,7 @@ GO
 
 CREATE VIEW [crt].[RETAILVATNUMIDVIEW] AS
 (
-SELECT  A.RECID, A.INSTANCERELATIONTYPE, B.ACCOUNTNUM, A.NAME,C.VATNUM, Left(RIGHT((c.vatnum),5),1) VALIDATOR, REPLACE(c.VATNUM, '-', '') IDFORMATED, LEN(REPLACE(c.VATNUM, '-', '')) VATNUMLEN, 
+SELECT  A.RECID, A.INSTANCERELATIONTYPE, C.ACCOUNTNUM, A.NAME,C.VATNUM, Left(RIGHT((c.vatnum),5),1) VALIDATOR, REPLACE(c.VATNUM, '-', '') IDFORMATED, LEN(REPLACE(c.VATNUM, '-', '')) VATNUMLEN, 
 		CASE
 			WHEN 
 				Left(RIGHT((c.vatnum),5),1)		=	'-'	AND	
@@ -201,29 +201,17 @@ SELECT  A.RECID, A.INSTANCERELATIONTYPE, B.ACCOUNTNUM, A.NAME,C.VATNUM, Left(RIG
 				Left(c.vatnum,1)				<>	'0'	AND 
 				c.vatnum LIKE '[0-9]%'	
 				THEN	'4'		-- nite
-			
-			WHEN 
-				Left(c.vatnum,1)				=	'0' 
-				THEN	'97'	--ERROR: CEROS AL INICIO 
 
 			WHEN
 				Len(REPLACE(c.vatnum,'-',''))	=	0
 				THEN	'98'	-- Error: sin cedula	
 
-			WHEN 
-				Len(REPLACE(c.vatnum,'-',''))	<	9	AND
-				Len(REPLACE(c.vatnum,'-',''))	<>	0	AND
-				Left(c.vatnum,1) LIKE '[0-9]%' 
-				THEN	'99'	-- Error: faltan ceros
-
 			ELSE		'10'	-- Exranjero
 		END as 'IDTYPE'
 
-  FROM DIRPARTYTABLE A, CUSTTABLE C,   RETAILCUSTTABLE B
-	WHERE A.PARTYNUMBER		= B.ACCOUNTNUM
-		AND  B.ACCOUNTNUM	= C.ACCOUNTNUM
-		AND  B.DATAAREAID	= C.DATAAREAID 
-		AND B.DATAAREAID	='FMCM'
+  FROM DIRPARTYTABLE A, CUSTTABLE C
+	WHERE A.PARTYNUMBER		= C.ACCOUNTNUM
+		AND C.DATAAREAID	='FMCM'
 )
 
 GO
@@ -981,8 +969,8 @@ END
 
 ```
 
-### 11. Crear Store Procedure (SP) Insert_EInvoice (version 4.3) <a name="diez"></a>
-El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda.
+### 11. Crear Store Procedure (SP) Insert_EInvoice (version 4.3) <a name="once"></a>
+El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda, en la versión 4.3 (vigente a partir del 01 de Julio de 2019).
 
 Para crear este SP ejecute el siguiente script:
 
@@ -996,13 +984,12 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 -- =============================================
--- Author:		Jairo Martínez Ureña
--- Create date: 2018-08-09
+-- Author:		JEFFREY CAMARENO FONSECA
 -- Description:	Insertar documento electrónico
 -- =============================================
 -- Example: EXEC dbo.Insert_EInvoice 'fmcm', '0003-000015-42931'
 
-ALTER PROCEDURE [dbo].[Insert_EInvoice]
+CREATE PROCEDURE [dbo].[Insert_EInvoice]
 	@DATAAREAID VARCHAR(5),
 	@TRANSACTIONID VARCHAR(50)
 AS
@@ -1049,17 +1036,31 @@ BEGIN
 	DECLARE @SUC				NVARCHAR(3)
 	DECLARE @TERM				NVARCHAR(3)
 	DECLARE @EINVOICETYPE		INT;
+	DECLARE @EINVOICETYPETMP    INT;
 	DECLARE @TRANSACTION		NVARCHAR(50)
 	DECLARE @RECEIPT			NVARCHAR(50)
 	DECLARE @NUMBEROFITEMS		NUMERIC(32,16)
 	DECLARE @COMPANYEMAIL		NVARCHAR(200)
 	DECLARE @POSDATETIME		DATETIME
 	
+	if exists(select 1 FROM DIRPARTYTABLE A, CUSTTABLE C
+	WHERE A.PARTYNUMBER		= C.ACCOUNTNUM 
+		AND C.DATAAREAID	='FMCM' and C.accountnum is not null and C.accountnum=(select top 1 RT.custaccount FROM #RETTRANSTMP	RT
+		INNER JOIN RETAILTRANSACTIONPAYMENTTRANS RTP (NOLOCK)
+			ON RTP.RECEIPTID	= RT.RECEIPTID
+			AND RTP.DATAAREAID	= RT.DATAAREAID and dbo.getCustomerIdType(RT.CUSTACCOUNT)<>'10' ))
+		begin
+			set @EINVOICETYPETMP=1;
+		end 
+		else begin
+			set @EINVOICETYPETMP=4;
+		end
+	
 	SELECT 
 		@RECEIPT				= RT.RECEIPTID,
 		@SUC					= CONVERT(NVARCHAR(3),CONVERT(INT, RT.STORE)),
 		@TERM					= CONVERT(NVARCHAR(3),CONVERT(INT, RT.TERMINAL))	,	
-		@EINVOICETYPE			= CASE WHEN SALEISRETURNSALE = 1 OR PAYMENTAMOUNT < 0 THEN 3 ELSE 1 END,
+		@EINVOICETYPE			= CASE WHEN SALEISRETURNSALE = 1 OR PAYMENTAMOUNT < 0 THEN 3 ELSE @EINVOICETYPETMP END,
 		@TRANSACTION			= RT.TRANSACTIONID,
 		@NUMBEROFITEMS			= RT.NUMBEROFITEMS,
 		@POSDATETIME			= DATEADD(HH, -6, RT.CREATEDDATETIME)
@@ -1095,7 +1096,7 @@ BEGIN
 			IdentificacionReceptor		= dbo.getCustomerVatNum(RT.CUSTACCOUNT),
 			CodigoActividad				= @CodigoActividad,	 --Version  4.3	
 			CorreoElectronicoReceptor	= dbo.getCustomerEmail(RT.CUSTACCOUNT),--CASE WHEN RT.RECEIPTEMAIL LIKE '%_@__%.__%'  AND PATINDEX('%[^a-z,0-9,@,.,_]%', REPLACE(RT.RECEIPTEMAIL, '-', 'a')) = 0 THEN RT.RECEIPTEMAIL ELSE @COMPANYEMAIL END, --CASE RT.RECEIPTEMAIL WHEN '' THEN 'vfactelectronic@grupointeca.com' ELSE RT.RECEIPTEMAIL END, --RECEIPTEMAIL
-			CopiaCortesia				= @COMPANYEMAIL
+			CopiaCortesia				= ''--@COMPANYEMAIL
 		FROM #RETTRANSTMP	RT
 		INNER JOIN RETAILTRANSACTIONPAYMENTTRANS RTP (NOLOCK)
 			ON RTP.RECEIPTID	= RT.RECEIPTID
@@ -1142,7 +1143,7 @@ BEGIN
 			CodigoImpuesto			= CASE RTSALES.TAXITEMGROUP WHEN 'EXENTOS' THEN '' ELSE '1' END,
 			CodigoTarifa			= CASE RTSALES.TAXITEMGROUP WHEN 'EXENTOS' THEN '' ELSE '8' END, --Version 4.3
 			PorcentajeImpuesto		= dbo.Get_TaxValuePercent(RTSALES.DATAAREAID, RTSALES.TAXITEMGROUP),
-			MontoImpuesto			= CASE WHEN RT.SALEISRETURNSALE = 1 OR RT.PAYMENTAMOUNT  < 0 THEN RTSALES.TAXAMOUNT ELSE RTSALES.TAXAMOUNT *-1  END,
+			MontoImpuesto			= (RTSALES.PRICE * (CASE WHEN SALEISRETURNSALE = 1 OR PAYMENTAMOUNT  < 0 THEN RTSALES.QTY ELSE RTSALES.QTY *-1 END)-CASE WHEN RT.SALEISRETURNSALE = 1 OR RT.PAYMENTAMOUNT  < 0 THEN RTSALES.DISCAMOUNT*-1 ELSE RTSALES.DISCAMOUNT  END)*(dbo.Get_TaxValuePercent(RTSALES.DATAAREAID, RTSALES.TAXITEMGROUP)/100),
 			PrecioBruto				= RTSALES.PRICE * (CASE WHEN SALEISRETURNSALE = 1 OR PAYMENTAMOUNT  < 0 THEN RTSALES.QTY ELSE RTSALES.QTY *-1 END),
 			TaxItemGroup			= RTSALES.TAXITEMGROUP,
 			TransactionId			= RT.TRANSACTIONID,
@@ -1162,10 +1163,12 @@ BEGIN
 		SET @DETROWNCOUNT = @@ROWCOUNT;
 
 		-- ACTUALIZA MONTO IMPUESTO (TEMAS DE HACIENDA)
+		--select @EINVOICETYPE,((cantidad*PrecioUnitario)-MontoDescuento)*(PorcentajeImpuesto/100),CONVERT(DECIMAL(15,2),round(((cantidad*PrecioUnitario)-MontoDescuento)*(PorcentajeImpuesto/100),2)),MontoImpuesto
+		 --from #DetalleXML
 		UPDATE #DetalleXML
-			SET MontoImpuesto		= CONVERT(DECIMAL(15,2),((PrecioUnitario * Cantidad) - MontoDescuento) * PorcentajeImpuesto/100)
-		WHERE @EINVOICETYPE			= 3
-
+			SET MontoImpuesto		= CONVERT(DECIMAL(15,2),round(((cantidad*PrecioUnitario)-MontoDescuento)*(PorcentajeImpuesto/100),2))
+		--select @EINVOICETYPE,((cantidad*PrecioUnitario)-MontoDescuento)*(PorcentajeImpuesto/100),CONVERT(DECIMAL(15,2),round(((cantidad*PrecioUnitario)-MontoDescuento)*(PorcentajeImpuesto/100),2)),MontoImpuesto
+		 --from #DetalleXML
 	--COMMIT TRAN
 	-- FIN NODO DETALLE	
 		
@@ -1188,7 +1191,7 @@ BEGIN
 		INSERT INTO #ReferenciaXML
 			SELECT TpoDocRef			= '04',
 				NumeracionReferencia	= EINV.EINVOICEID, --@ReturnTransactionId,
-				CodigoReferencia		= CASE WHEN @NUMBEROFITEMS = TRANS.NUMBEROFITEMS THEN '01' ELSE '03' END, -- 1 anula referencia , 2 corrige texto, 3 corrige monto
+				CodigoReferencia		= '99',--CASE WHEN @NUMBEROFITEMS = TRANS.NUMBEROFITEMS THEN '01' ELSE '03' END, -- 1 anula referencia , 2 corrige texto, 3 corrige monto
 				TRANS.TransactionId, 
 				TRANS.ReceiptId 
 			FROM RETAILTRANSACTIONTABLE TRANS (NOLOCK)	
@@ -1418,8 +1421,28 @@ BEGIN
 		--BEGIN TRY	
 		--BEGIN TRAN
 		--SELECT @RECEIPTID
-		INSERT INTO EINVOICELOG (DATAAREAID, EINVOICEID, EINVOICESEQUENCEKEY, ERRORMSG, XMLSENDED, XMLRECEIVED, INVOICEID, ERRORCODE, GI_SENTSITUATION, STORE, TERMINAL, GI_EINVOICEINSERTSTATUS, EINVOICETYPE, CREATEDDATETIME, RECEIPTID, POSCREATEDDATE)
+		
+		--
+		IF exists(SELECT INVOICEID FROM EINVOICELOG WHERE INVOICEID = @TRANSACTION AND (EINVOICEID = '' or einvoiceid is null))
+			BEGIN
+			UPDATE EINVOICELOG
+				SET EINVOICEID			= @EINVOICEID, 
+					EINVOICESEQUENCEKEY = @SEQUENCENUM, 
+					ERRORMSG			= @ERRORMSG,
+					XMLSENDED			= @XMLString, 
+					XMLRECEIVED			= @XMLRECEIVEDSTR,
+					ERRORCODE			= @ERRORCODE, 
+					POSCREATEDDATE		= @POSDATETIME
+
+				WHERE INVOICEID = @TRANSACTION;
+		END
+		ELSE
+			BEGIN
+				INSERT INTO EINVOICELOG (DATAAREAID, EINVOICEID, EINVOICESEQUENCEKEY, ERRORMSG, XMLSENDED, XMLRECEIVED, INVOICEID, ERRORCODE, GI_SENTSITUATION, STORE, TERMINAL, GI_EINVOICEINSERTSTATUS, EINVOICETYPE, CREATEDDATETIME, RECEIPTID, POSCREATEDDATE)
 								VALUES (@DATAAREAID, ISNULL(@EINVOICEID, ''), ISNULL(@SEQUENCENUM,''), @ERRORMSG, @XMLString,@XMLRECEIVEDSTR, @TRANSACTION, @ERRORCODE, 1, @SUC, @TERM, 0, @EINVOICETYPE,DATEADD(HOUR,-6,GETUTCDATE()), @RECEIPT,  @POSDATETIME)
+			END
+		
+		
 		--COMMIT TRAN
 	END
 	
@@ -1432,7 +1455,7 @@ END
 
 ```
 
-### 12. Crear el Store Procedure (SP) Check_Insert_EInvoicelog <a name="once"></a>
+### 12. Crear el Store Procedure (SP) Check_Insert_EInvoicelog <a name="doce"></a>
 Este SP se encarga de verificar periódicamente que todas las transacciones que se encuentran en la tabla de _RetailTransactionTable_ también se encuentre en la tabla de logs _EInvoiceLog_.
 
 Para crear este SP ejecute el siguiente script:
@@ -1443,7 +1466,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 -- =============================================
--- Author:          Jairo Martínez Ureña
+-- Author:          Jeffrey Camareno Fonseca
 -- Create date:     2018-08-21
 -- Description:	    Verifica lo las facturas que faltan en EInvoiceLog vs Tabla de transacciones del POS
 -- =============================================
@@ -1484,8 +1507,9 @@ BEGIN
 			ON EINV.INVOICEID   = PAYM.TRANSACTIONID 
 			AND EINV.DATAAREAID = PAYM.DATAAREAID
 		WHERE PAYM.DATAAREAID = @DATAAREAID
-			AND TRANS.TRANSDATE  >= CONVERT(date, GETDATE()-7) -- revisa las facturas de 7 días atrás hasta el día actual
-			AND (EINV.EINVOICEID IS NULL OR ERRORCODE IS NULL)
+			AND TRANS.TRANSDATE  >= CONVERT(date, GETDATE()-24) --revisa 3 dias hacia atras hasta el dia actual
+			AND (EINV.EINVOICEID = '' OR EINV.EINVOICEID IS NULL)
+			--AND RETRIES < 4 --# DE INTENTOS MAXIMOS PARA REENVIAR FACTURAS ELECTRONICAS
 			--AND PAYM.TRANSACTIONID IN ('0003-000015-41755','0003-005-98613')
 		GROUP BY PAYM.DATAAREAID, PAYM.RECEIPTID, PAYM.TRANSDATE, TRANS.CREATEDDATETIME, PAYM.TRANSACTIONID, TRANS.SALEISRETURNSALE, TRANS.PAYMENTAMOUNT-- , CONVERT(date, GETDATE())
 		ORDER BY TRANS.CREATEDDATETIME ASC
@@ -1510,10 +1534,11 @@ BEGIN
 	
 	DROP TABLE #TEMP
 END
+
 ```
 
-### 13. Crear Job EInvoiceFMCM <a name="doce"></a>
-Este _Job_ se encargará de ejecutar cada 30 segundos (por defecto) el SP InsertEInvoice
+### 13. Crear Job EInvoiceFMCM <a name="trece"></a>
+Este _Job_ se encargará de ejecutar cada 10 minutos (por defecto) el SP InsertEInvoice
 
 Para crear el trigger, siga los siguientes pasos:
 
@@ -1539,7 +1564,7 @@ Para crear el trigger, siga los siguientes pasos:
                      |-- Schedule type: Recurring
                      |-- Occurs: Daily
                      |-- Recurs every: 1 day
-                     |-- Occurs every: 30 seconds
+                     |-- Occurs every: 10 minutes
                      |-- Starting at: 8:00 am
                      |-- Ending at: 8:00 pm
                      |-- Check: No end date
