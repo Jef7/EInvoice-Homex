@@ -19,8 +19,8 @@ Proyecto de Facturación Electrónica, Agosto 2018
 7. [Creación de la vista de identificaciones](#siete)
 8. [Funciones](#ocho)
 9. [Crear tabla de logs](#nueve)
-10. [Crear Store Procedure (SP) Insert_EInvoice 4.2 (NO VIGENTE)](#diez) 
-11. [Crear Store Procedure (SP) Insert_EInvoice 4.3 (VIGENTE)](#once)
+10. [Crear Store Procedure (SP) Insert_EInvoice 4.2 (VERSIÓN OBSOLETA)](#diez) 
+11. [Crear Store Procedure (SP) Insert_EInvoice 4.3 (VERSIÓN VIGENTE)](#once)
 12. [Crear el Store Procedure (SP) Check_Insert_EInvoicelog](#doce)
 13. [Crear Job EInvoiceFMCM](#trece)
 
@@ -535,8 +535,8 @@ CREATE TABLE [dbo].[EINVOICELOG](
 GO
 ```
 
-### 10. Crear Store Procedure (SP) Insert_EInvoice (version 4.2) (NO VIGENTE)<a name="diez"></a>
-El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda.
+### 10. Crear Store Procedure (SP) Insert_EInvoice (version 4.2) (VERSIÓN OBSOLETA)<a name="diez"></a>
+El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda. Esta versión está obsoleta, deberá utlizar la versión vigente.
 
 Para crear este SP ejecute el siguiente script:
 
@@ -969,7 +969,7 @@ END
 
 ```
 
-### 11. Crear Store Procedure (SP) Insert_EInvoice (version 4.3) (VIGENTE)<a name="once"></a>
+### 11. Crear Store Procedure (SP) Insert_EInvoice (version 4.3) (VERSIÓN VIGENTE)<a name="once"></a>
 El SP Insert_EInvoice es el que se encarga de contruir el XML de la factura que se va a Insertar en el Ministerio de Hacienda, en la versión 4.3 (vigente a partir del 01 de Julio de 2019).
 
 Para crear este SP ejecute el siguiente script:
