@@ -190,9 +190,9 @@ SELECT  A.RECID, A.INSTANCERELATIONTYPE, C.ACCOUNTNUM, A.NAME,C.VATNUM, Left(RIG
 				THEN	'2'		--cedula juridica
 
 			WHEN 
-				LEN(REPLACE(c.vatnum, '-', ''))	=	11	OR 
-				LEN(REPLACE(c.vatnum, '-', '')) =	12	AND
-				Left(c.vatnum,1)				<>	'0'	AND 
+				(LEN(REPLACE(c.vatnum, '-', ''))	=	11	OR 
+				 LEN(REPLACE(c.vatnum, '-', ''))	=	12)	AND
+				Left(c.vatnum,1)					<>	'0'	AND 
 				c.vatnum LIKE '[0-9]%'
 				THEN	'3'		--dimex 
 
@@ -201,6 +201,16 @@ SELECT  A.RECID, A.INSTANCERELATIONTYPE, C.ACCOUNTNUM, A.NAME,C.VATNUM, Left(RIG
 				Left(c.vatnum,1)				<>	'0'	AND 
 				c.vatnum LIKE '[0-9]%'	
 				THEN	'4'		-- nite
+
+			WHEN 
+				Len(REPLACE(c.vatnum,'-',''))	>=	1	AND
+				Len(REPLACE(c.vatnum,'-',''))	<=	20	AND
+				(
+				 Left(c.vatnum,1) LIKE '[0-9]%'			OR	--INICIA NUMERICO
+				 Left(c.vatnum,1) LIKE '[A-Z]%'			OR	--INICIA LETRA MAYUSCULA
+				 Left(c.vatnum,1) LIKE '[a-z]%'				--INICIA LETRA MINUSCULA
+				)
+				THEN	'10'	--Exranjero
 
 			WHEN
 				Len(REPLACE(c.vatnum,'-',''))	=	0
@@ -214,7 +224,9 @@ SELECT  A.RECID, A.INSTANCERELATIONTYPE, C.ACCOUNTNUM, A.NAME,C.VATNUM, Left(RIG
 		AND C.DATAAREAID	='FMCM'
 )
 
+
 GO
+
 ```
 
 ### 8. Funciones <a name="ocho"></a>
